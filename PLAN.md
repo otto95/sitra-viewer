@@ -25,20 +25,20 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 ## Phase 2: Graph schema from ontology
 
-- [ ] Inspect `docs/ontology_diagram.drawio` and identify its entity types, properties, and relationship types.
-- [ ] Translate the ontology into a Neo4j graph model and Cypher setup, including only the constraints and indexes needed for record identity, search, date filtering, and relationship traversal.
-- [ ] Define how NARA fields map to ontology properties and relationships; identify metadata that can support inferred links between records, including shared unit, place, and date. Preserve source UTM/MGRS values alongside normalized coordinates.
-- [ ] Compare relationships apparent in the source data with those expressible in the ontology. Recommend and document schema modifications wherever a useful relationship cannot be represented; incorporate needed changes before finalizing the schema.
-- [ ] Store metadata-inferred associations as possible links, distinct from source-stated relationships, and record the shared metadata supporting each inference. Support promoting a possible link to a definite link while retaining its origin/evidence.
-- [ ] Validate that representative NARA records and their associations can be represented by the schema before implementing the one-time import.
+- [x] Inspect `docs/ontology_diagram.drawio` and identify its entity types, properties, and relationship types.
+- [x] Translate the ontology into a Neo4j graph model and Cypher setup, including only the constraints and indexes needed for record identity, search, date filtering, and relationship traversal.
+- [x] Define how NARA fields map to ontology properties and relationships; identify metadata that can support inferred links between records, including shared unit, place, and date. Preserve source UTM/MGRS values alongside normalized coordinates.
+- [x] Compare relationships apparent in the source data with those expressible in the ontology. Recommend and document schema modifications wherever a useful relationship cannot be represented; incorporate needed changes before finalizing the schema.
+- [x] Store metadata-inferred associations as possible links, distinct from source-stated relationships, and record the shared metadata supporting each inference. Support promoting a possible link to a definite link while retaining its origin/evidence.
+- [x] Validate representative NARA record fields and associations against the schema before implementing the one-time import. The official 1966–1968 fixed-width layout and a representative record row were inspected; the database sample validates source groups, periodic sets, possible-link evidence, promotion, search, and date filtering. Bulk parsing remains Phase 3.
 
 **Success criteria**
 
-- [ ] The graph schema is traceable to `docs/ontology_diagram.drawio`, with any interpretation decisions documented.
-- [ ] Any schema changes recommended after reviewing the data are documented with their rationale and reflected in the finalized model.
-- [ ] A representative sample can be modeled and queried in Neo4j, including source-stated relationships and metadata-inferred possible links; a possible link can be promoted to a definite link without losing its evidence or provenance.
-- [ ] The schema supports the required search and date-filter workflows without adding unrelated data concepts.
-- [ ] The schema is documented under the docs folder
+- [x] The graph schema is traceable to `docs/ontology_diagram.drawio`, with any interpretation decisions documented.
+- [x] Any schema changes recommended after reviewing the data are documented with their rationale and reflected in the finalized model.
+- [x] A representative sample can be modeled and queried in Neo4j, including source-stated relationships and metadata-inferred possible links; a possible link can be promoted to a definite link without losing its evidence or provenance.
+- [x] The schema supports the required search and date-filter workflows without adding unrelated data concepts.
+- [x] The schema is documented under the docs folder.
 
 ## Phase 3: One-time data ingestion and API
 

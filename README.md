@@ -22,6 +22,12 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build
 
 Open <http://localhost:8080> for the frontend in development mode too.
 
+Run backend unit and Neo4j integration tests with:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml exec backend uv run --no-sync pytest
+```
+
 ## Import command
 
 Put the selected NARA data file in `data/`. Run the importer separately from app startup:
