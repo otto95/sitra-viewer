@@ -1,0 +1,39 @@
+:root {
+  --olive: #556b2f;
+  --field-green: #3f5940;
+  --tan: #b58b5a;
+  --charcoal: #242820;
+  --warm-gray: #77766d;
+  --parchment: #f3f0e6;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: Inter, 'Segoe UI', sans-serif;
+
+  font-family: var(--sans);
+  color: var(--charcoal);
+  background: var(--parchment);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 3px;
+}

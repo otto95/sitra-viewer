@@ -1,0 +1,13 @@
+[project]
+name = "sitra-viewer-api"
+version = "0.1.0"
+description = "API for the SITRA Vietnam Conflict Data Explorer"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.165.0",
+    "neo4j==6.4.1",
+    "uvicorn[standard]==0.54.0",
+]
+
+[tool.uv]
+package = false
