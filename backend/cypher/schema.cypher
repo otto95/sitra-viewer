@@ -10,6 +10,9 @@ FOR (periodicSet:PeriodicSet) REQUIRE periodicSet.periodicSetId IS UNIQUE;
 CREATE CONSTRAINT unit_key IF NOT EXISTS
 FOR (unit:Unit) REQUIRE unit.unitKey IS UNIQUE;
 
+CREATE CONSTRAINT aircraft_service_key IF NOT EXISTS
+FOR (service:AircraftService) REQUIRE service.serviceKey IS UNIQUE;
+
 CREATE CONSTRAINT source_group_key IF NOT EXISTS
 FOR (sourceGroup:SourceGroup) REQUIRE sourceGroup.groupKey IS UNIQUE;
 
@@ -30,6 +33,9 @@ FOR ()-[link:RELATED_TO]-() REQUIRE link.linkId IS UNIQUE;
 
 CREATE INDEX report_message_sent_date IF NOT EXISTS
 FOR (report:Report) ON (report.reportDate);
+
+CREATE INDEX report_source_mgrs IF NOT EXISTS
+FOR (report:Report) ON (report.sourceMgrs);
 
 CREATE FULLTEXT INDEX report_search IF NOT EXISTS
 FOR (report:Report) ON EACH [report.searchText];

@@ -1,5 +1,4 @@
 import argparse
-import hashlib
 import os
 from pathlib import Path
 from typing import Any
@@ -116,8 +115,7 @@ def related_link_id(record_id_a: str, record_id_b: str) -> str:
     first, second = sorted((record_id_a.encode("utf-8"), record_id_b.encode("utf-8")))
     if first == second:
         raise ValueError("a report cannot be linked to itself")
-    payload = len(first).to_bytes(4, "big") + first + len(second).to_bytes(4, "big") + second
-    return "related:" + hashlib.sha256(payload).hexdigest()
+    return f"related:{first.decode('utf-8')}|{second.decode('utf-8')}"
 
 
 def apply_schema(driver: Driver, database: str = "neo4j") -> None:
