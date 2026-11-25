@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from neo4j import Driver, GraphDatabase
 
+from app.code_values import code_label_fields, decode_code
 from app.coordinates import convert_to_latlong
 from app.graph_schema import apply_schema
 
@@ -96,22 +97,22 @@ FOREACH (_ IN CASE WHEN item.sourceGroup IS NULL THEN [] ELSE [1] END |
 FOREACH (lookup IN item.lookupCodes |
     FOREACH (_ IN CASE WHEN lookup.kind = 'Nationality' THEN [1] ELSE [] END |
         MERGE (code:Nationality {code: lookup.code})
-        SET code.description = lookup.code
+        SET code.description = lookup.description
         MERGE (report)-[:HAS_NATIONALITY]->(code)
     )
     FOREACH (_ IN CASE WHEN lookup.kind = 'Country' THEN [1] ELSE [] END |
         MERGE (code:Country {code: lookup.code})
-        SET code.description = lookup.code
+        SET code.description = lookup.description
         MERGE (report)-[:HAS_COUNTRY]->(code)
     )
     FOREACH (_ IN CASE WHEN lookup.kind = 'OperationType' THEN [1] ELSE [] END |
         MERGE (code:OperationType {code: lookup.code})
-        SET code.description = lookup.code
+        SET code.description = lookup.description
         MERGE (report)-[:HAS_OPERATION_TYPE]->(code)
     )
     FOREACH (_ IN CASE WHEN lookup.kind = 'Province' THEN [1] ELSE [] END |
         MERGE (code:Province {code: lookup.code})
-        SET code.description = lookup.code
+        SET code.description = lookup.description
         FOREACH (__ IN CASE WHEN lookup.role = 'primary' THEN [1] ELSE [] END |
             MERGE (fixed)-[:HAS_PRIMARY_PROVINCE]->(code)
         )
@@ -132,6 +133,7 @@ FOREACH (periodic IN item.periodicSets |
     FOREACH (_ IN CASE WHEN periodic.aircraftService IS NULL THEN [] ELSE [1] END |
         MERGE (service:AircraftService {serviceKey: periodic.aircraftService})
         SET service.code = periodic.aircraftService
+        SET service.description = periodic.aircraftServiceLabel
         MERGE (periodicSet)-[:HAS_AIRCRAFT_SERVICE]->(service)
     )
 )
@@ -240,6 +242,7 @@ def _unit_properties(fields: dict[str, str]) -> dict[str, str] | None:
     return {
         "unitKey": key,
         "serviceNationality": identity[0],
+        "serviceNationalityLabel": decode_code("SVNAT", identity[0]) if identity[0] else None,
         "company": identity[1],
         "battalionId": identity[2],
         "brigadeDesignation": identity[3],
@@ -264,6 +267,7 @@ def parse_record(line: str, source_file: Path, line_number: int) -> dict[str, An
         "reportDateRaw": fields["DATE"],
         "searchText": _text_fields(fields),
     }
+    report.update(code_label_fields({name: fields[name] for name in ("DATAT", "CORP", "PART")}, fields["DATAT"]))
     for name, (_, _, group) in FIELDS.items():
         if group == "control" and name != "DATE" and fields[name]:
             report[name.lower()] = fields[name]
@@ -292,6 +296,7 @@ def parse_record(line: str, source_file: Path, line_number: int) -> dict[str, An
     for name, (_, _, group) in FIELDS.items():
         if group == "fixed" and name != "UDATE" and fields[name]:
             fixed[name.lower()] = fields[name]
+    fixed.update(code_label_fields({name: fields[name] for name in ("FNATL", "CNTRY", "OPCOD", "PRVC1", "PRVC2", "PRVC3")}, fields["DATAT"]))
     update_date = parse_date(fields["UDATE"])
     if update_date:
         fixed["updateDate"] = update_date
@@ -318,6 +323,7 @@ def parse_record(line: str, source_file: Path, line_number: int) -> dict[str, An
             "groupKey": group_key,
             "messageSentDate": report_date,
             "reportType": fields["DATAT"],
+            "reportTypeLabel": decode_code("DATAT", fields["DATAT"]) if fields["DATAT"] else None,
             "paragraphNumber": fields["SERAL"],
             "militaryRegion": fields["CORP"],
             "part": fields["PART"],
@@ -327,10 +333,10 @@ def parse_record(line: str, source_file: Path, line_number: int) -> dict[str, An
     lookup_codes = []
     for kind, name in (("Nationality", "FNATL"), ("Country", "CNTRY"), ("OperationType", "OPCOD")):
         if fields[name]:
-            lookup_codes.append({"kind": kind, "code": fields[name]})
+            lookup_codes.append({"kind": kind, "code": fields[name], "description": decode_code(name, fields[name], fields["DATAT"])})
     for role, name in (("primary", "PRVC1"), ("secondary", "PRVC2"), ("secondary", "PRVC3")):
         if fields[name]:
-            lookup_codes.append({"kind": "Province", "role": role, "code": fields[name]})
+            lookup_codes.append({"kind": "Province", "role": role, "code": fields[name], "description": decode_code(name, fields[name], fields["DATAT"])})
 
     periodic_sets = []
     for set_name, kind in SET_KINDS.items():
@@ -347,13 +353,24 @@ def parse_record(line: str, source_file: Path, line_number: int) -> dict[str, An
             "searchText": _text_fields(set_fields),
         }
         props.update({name.lower(): value for name, value in set_fields.items() if value})
+        props.update(code_label_fields(set_fields, fields["DATAT"]))
         unit = _unit_properties(set_fields) if set_name == "set3" else None
         periodic_sets.append({
             "periodicSetId": props.pop("periodicSetId"),
             "properties": props,
             "unit": unit,
             "aircraftService": fields["ARSVC"] if set_name == "set1" and fields["ARSVC"] else None,
+            "aircraftServiceLabel": props.get("arsvcLabel"),
         })
+
+    decoded_labels = code_label_fields(fields, fields["DATAT"])
+    report["searchText"] = normalize_text(" ".join([report["searchText"], *decoded_labels.values()]))
+    for periodic in periodic_sets:
+        periodic["properties"]["searchText"] = normalize_text(
+            " ".join([periodic["properties"]["searchText"], *(
+                value for key, value in periodic["properties"].items() if key.endswith("Label")
+            )])
+        )
 
     return {
         "report": report,

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from neo4j import GraphDatabase
 
 from app import graph_schema
+from app.code_values import decode_code
 from app.coordinates import convert_to_latlong
 from app.import_data import (
     FIELDS,
@@ -82,11 +83,13 @@ def make_line(values: dict[str, str]) -> str:
 def test_parse_record_maps_all_fields_dates_utm_units_and_control_group(tmp_path: Path) -> None:
     source = tmp_path / "SITRA.TR.6668.txt"
     line = make_line({
-        "DATE": "660520", "DATAT": "W", "SERAL": "003", "CORP": "1", "PART": "A",
-        "OPNAM": "Junction City", "OPCOD": "A1", "UDATE": "67125",
-        "PRVC1": "01", "UTM": "WH000114", "FSLIN": "001", "CONAM": "Task Force",
-        "SSLIN": "001", "TYPAT": "AA", "OBJEC": "01", "OBJDS": "VC",
-        "LINFS": "001", "SVNAT": "V", "COMPY": "A01", "BNID": "1 BN",
+        "DATE": "660520", "DATAT": "W", "SERAL": "003", "CORP": "1", "PART": "1",
+        "FNATL": "W", "CNTRY": "VS", "OPNAM": "Junction City", "OPCOD": "AT", "UDATE": "67125",
+        "PRVC1": "01", "UTM": "WH000114", "FSLIN": "001", "CONAM": "Task Force", "ARSVC": "J",
+        "SSLIN": "001", "TYPAT": "AT", "OBJEC": "01", "OBJDS": "10",
+        "LINFS": "001", "SVNAT": "V", "COMPY": "A01", "BNID": "1 BN", "SMTH": "C",
+        "MVRSP": "M", "RESAC": "A", "TSLIN": "001", "LSCAT": "0", "LSCLS": "1",
+        "SFLIN": "001", "INATL": "V", "ISIZE": "P", "ICTZ": "1", "SLINS": "001", "LTYPE": "D",
     })
 
     record = parse_record(line, source, 17)
@@ -99,11 +102,54 @@ def test_parse_record_maps_all_fields_dates_utm_units_and_control_group(tmp_path
     assert record["report"]["latitude"] == pytest.approx(20.0, abs=0.01)
     assert record["fixed"]["updateDate"] == date(1967, 5, 5)
     assert record["fixed"]["updateDateRaw"] == "67125"
+    assert record["report"]["reportType"] == "W"
+    assert record["report"]["reportTypeLabel"] == "Statistical summary"
+    assert record["report"]["partLabel"] == "US forces"
+    assert record["report"]["corpLabel"] == "South Vietnam Corps Area 1"
+    assert record["fixed"]["fnatlLabel"] == "Army"
+    assert record["fixed"]["cntryLabel"] == "South Vietnam"
+    assert record["fixed"]["opcod"] == "AT"
+    assert record["fixed"]["opcodLabel"] == "Attack"
+    assert record["fixed"]["prvc1Label"] == "Quang Tri"
     assert record["sourceGroup"]["messageSentDate"] == date(1966, 5, 20)
     assert record["periodicSets"][1]["properties"]["kind"] == "Action"
+    assert record["periodicSets"][1]["properties"]["typat"] == "AT"
+    assert record["periodicSets"][1]["properties"]["typatLabel"] == "Attack"
+    assert record["periodicSets"][1]["properties"]["objecLabel"] == "Guard post"
+    assert record["periodicSets"][1]["properties"]["objdsLabel"] == "On reconnaissance"
+    assert record["periodicSets"][0]["properties"]["arsvcLabel"] == "Air Force"
     assert record["periodicSets"][2]["unit"]["company"] == "A01"
+    assert record["periodicSets"][2]["unit"]["serviceNationalityLabel"] == "Viet Cong"
+    assert record["periodicSets"][2]["properties"]["smthLabel"] == "Company"
+    assert record["periodicSets"][2]["properties"]["mvrspLabel"] == "Maneuver"
+    assert record["periodicSets"][2]["properties"]["resacLabel"] == "Active"
+    assert record["periodicSets"][3]["properties"]["lossCodeLabel"] == "Small arms"
+    assert record["periodicSets"][3]["properties"]["lnatlLabel"] == "Enemy"
+    assert record["periodicSets"][4]["properties"]["ictzLabel"] == "South Vietnam Corps Area 1"
+    assert record["periodicSets"][4]["properties"]["isizeLabel"] == "Platoon"
+    assert record["periodicSets"][5]["properties"]["ltypeLabel"] == "Killed in action"
     assert "Junction City" in record["report"]["searchText"]
-    assert all(value in record["report"]["searchText"] for value in ["Task Force", "VC", "1 BN"])
+    assert all(value in record["report"]["searchText"] for value in ["Task Force", "Viet Cong", "1 BN", "Quang Tri", "Attack"])
+
+
+def test_unknown_code_remains_raw_without_invented_label(tmp_path: Path) -> None:
+    record = parse_record(make_line({"DATAT": "?", "FNATL": "?", "OPCOD": "??"}), tmp_path / "unknown.txt", 1)
+
+    assert record is not None
+    assert record["report"]["reportType"] == "?"
+    assert "reportTypeLabel" not in record["report"]
+    assert record["fixed"]["fnatl"] == "?"
+    assert "fnatlLabel" not in record["fixed"]
+    assert record["fixed"]["opcod"] == "??"
+    assert "opcodLabel" not in record["fixed"]
+
+
+def test_action_type_uses_the_documented_table_for_its_report_type() -> None:
+    assert decode_code("TYPAT", "A2", "E") == "Attacked by firing"
+    assert decode_code("TYPAT", "AT", "E") is None
+    assert decode_code("TYPAT", "AT", "S") == "Attack"
+    assert decode_code("FNATL", "I") == "Vietnamese Navy"
+    assert decode_code("FNATL", "1") == "Regional Force"
 
 
 def test_search_text_includes_each_imported_source_field(tmp_path: Path) -> None:
@@ -157,7 +203,9 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
     source = tmp_path / "phase3-loader-check.txt"
     row = make_line({
         "DATE": "660520", "DATAT": "W", "SERAL": "ZZZ", "CORP": "Z", "PART": "Z",
+        "FNATL": "W", "CNTRY": "VS", "OPCOD": "AT", "PRVC1": "01",
         "UTM": "WH000114", "LINFS": "001", "SVNAT": "V", "COMPY": "XQ3", "BNID": "PH3TEST",
+        "SSLIN": "002", "TYPAT": "AT", "OBJEC": "01", "OBJDS": "10",
     })
     source.write_bytes((row + "\r\n" + row + "\r\n").encode("ascii"))
     driver = GraphDatabase.driver(uri)
@@ -171,9 +219,12 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
                 MATCH (report:Report {sourceFile: $source})
                 OPTIONAL MATCH (report)-[:MEMBER_OF]->(group:SourceGroup)
                 OPTIONAL MATCH (report)-[:HAS_FIXED_SET]->(:FixedSet)-[:HAS_PERIODIC_SET]->(periodic:PeriodicSet)
+                OPTIONAL MATCH (report)-[:HAS_FIXED_SET]->(fixed:FixedSet)
                 RETURN count(DISTINCT report) AS reports,
                        count(DISTINCT group) AS groups,
                        count(DISTINCT periodic) AS periodicSets,
+                       collect(DISTINCT fixed.prvc1Label) AS provinceLabels,
+                       collect(DISTINCT periodic.typatLabel) AS actionLabels,
                        collect(DISTINCT report.reportDateRaw) AS rawDates,
                        collect(DISTINCT report.sourceMgrs) AS mgrsValues
                 """,
@@ -194,6 +245,8 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
         assert result["reports"] == 2
         assert result["groups"] == 1
         assert result["periodicSets"] == 4
+        assert "Quang Tri" in result["provinceLabels"]
+        assert "Attack" in result["actionLabels"]
         assert weekly_reports == 2
         assert result["rawDates"] == ["660520"]
         assert result["mgrsValues"] == ["48QWH000114"]
@@ -239,7 +292,7 @@ def test_api_records_details_related_and_promotion_against_neo4j() -> None:
         session.run(
             """
             MERGE (a:Report {recordId: $a})
-            SET a += {phase3Sample: $tag, reportDate: date('1968-01-03'), searchText: 'phase3jungle example one', sourceMgrs: '48QWH000114', latitude: 20.0, longitude: 105.0}
+            SET a += {phase3Sample: $tag, reportDate: date('1968-01-03'), reportType: 'W', reportTypeLabel: 'Statistical summary', searchText: 'phase3jungle example one quang tri', sourceMgrs: '48QWH000114', latitude: 20.0, longitude: 105.0}
             MERGE (b:Report {recordId: $b})
             SET b += {phase3Sample: $tag, reportDate: date('1968-01-03'), searchText: 'phase3jungle example two'}
             MERGE (c:Report {recordId: $c})
@@ -251,10 +304,10 @@ def test_api_records_details_related_and_promotion_against_neo4j() -> None:
             MERGE (a)-[link:RELATED_TO {linkId: $link_id}]->(c)
             SET link.status = 'possible', link.origin = 'metadata_inferred', link.evidence = ['shared_unit:phase3-test-unit', 'shared_date:1968-01-04']
             MERGE (fixed:FixedSet {fixedSetId: $fixed_id})
-            SET fixed += {phase3Sample: $tag}
+            SET fixed += {phase3Sample: $tag, prvc1: '01', prvc1Label: 'Quang Tri'}
             MERGE (c)-[:HAS_FIXED_SET]->(fixed)
             MERGE (periodic:PeriodicSet {periodicSetId: $periodic_id})
-            SET periodic += {phase3Sample: $tag, kind: 'Unit', svnat: 'V'}
+            SET periodic += {phase3Sample: $tag, kind: 'Unit', svnat: 'V', svnatLabel: 'Viet Cong'}
             MERGE (fixed)-[:HAS_PERIODIC_SET]->(periodic)
             """,
             a=record_a,
@@ -279,10 +332,14 @@ def test_api_records_details_related_and_promotion_against_neo4j() -> None:
         assert second_page.json()["total"] == 3
         assert len(second_page.json()["items"]) == 1
 
+        code_search = client.get("/api/records", params={"q": "quang", "limit": 10}).json()
+        assert any(item["record"]["recordId"] == record_a for item in code_search["items"])
+
         detail = client.get(f"/api/records/{record_c}")
         assert detail.status_code == 200
         assert detail.json()["record"]["recordId"] == record_c
         assert detail.json()["periodicSets"][0]["kind"] == "Unit"
+        assert detail.json()["periodicSets"][0]["svnatLabel"] == "Viet Cong"
         map_result = client.get("/api/records", params={"q": "phase3jungle", "limit": 10}).json()
         map_record = next(item["record"] for item in map_result["items"] if item["record"]["recordId"] == record_a)
         assert map_record["latitude"] == 20.0

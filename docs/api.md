@@ -1,6 +1,6 @@
 # API
 
-The FastAPI service reads the local Neo4j database. Application startup does not ingest or modify records. Dates in API responses use ISO `YYYY-MM-DD`.
+The FastAPI service reads the local Neo4j database. Application startup does not ingest or modify records. Dates in API responses use ISO `YYYY-MM-DD`. For source fields that have documented code tables, API results retain the raw code and include a companion `...Label` value; report search text also includes known labels. Unknown codes remain raw and have no label.
 
 ## Search
 
@@ -25,6 +25,7 @@ Example response:
         "reportDate": "1966-05-20",
         "reportDateRaw": "660520",
         "reportType": "W",
+        "reportTypeLabel": "Statistical summary",
         "sourceUtm": "WH000114",
         "mgrsGzd": "48Q",
         "sourceMgrs": "48QWH000114",
@@ -42,6 +43,8 @@ Example response:
 ```
 
 Records with a missing or unparseable date remain searchable without date bounds. Their `reportDate` is absent, and they do not match a date-filtered query. Records with unconvertible coordinates retain `sourceUtm` and omit `mgrsGzd`, `sourceMgrs`, `latitude`, and `longitude`.
+
+Record details expose decoded code labels on the corresponding report, fixed-set, periodic-set, unit, and lookup-node properties. See [NARA source notes](nara-source.md) and [`backend/app/code_values.py`](../backend/app/code_values.py) for mapped source tables.
 
 ## Record details and associations
 
