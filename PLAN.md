@@ -44,6 +44,7 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 - [x] Provide a separate import command that loads the selected NARA source into the locally running Neo4j Community Edition database, preserving source identifiers and useful metadata. Keep the imported graph data local; routine refreshes are out of scope. App startup must not run this command automatically.
 - [x] Select the four ASCII translations covering the full 1966–1973 period; normalize all imported text fields for free-text search and relationship references while retaining source provenance. Normalize every parseable date to ISO 8601 calendar-date form (`YYYY-MM-DD`). Treat a date value with exactly five digits or a trailing `J` as a Julian date; interpret years as 1965–1973, convert valid Julian dates to Gregorian dates, and retain original date values.
+- [ ] Decode coded source values to readable labels using the authoritative code descriptions and value tables in NARA's [SITRA technical documentation](https://catalog.archives.gov/medialz/electronic-records/rg-218/SITRA/131.1DP.pdf). Cover every coded field with a documented mapping, including data type, force/service nationality, country, operation/action type, province, objective and objective description, unit size, and loss/incident codes. Preserve the original code alongside the readable value; leave unknown or undocumented codes visible as raw codes rather than guessing.
 - [x] Convert legacy UTM values to latitude/longitude with `convert_to_latlong`. The source values omit the grid zone designator (GZD); try each of Vietnam's four GZDs (`48Q`, `49Q`, `48P`, and `49P`), accept a unique MGRS interpretation inside that GZD's Vietnam bounds, then retain the selected GZD/MGRS and converted coordinates. Missing or unconvertible coordinates remain absent.
 - [x] Create metadata-inferred links from shared unit and exact MGRS location, and add shared date as evidence when present. Source-stated control groups remain distinct; evidence and origin are retained for promotion.
 - [x] Define API endpoints for free-text search across all imported text fields, pagination, date-range filtering, record details, map-ready results, related records, and possible-link promotion. Document stable routes and response shapes.
@@ -55,6 +56,7 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 - [x] API responses have documented, stable shapes and return enough information for all required views.
 - [x] Unit and Neo4j integration tests cover import/date normalization, Julian and calendar dates, missing and invalid values, search/date filtering, pagination, details, relationship lookup, and possible-link promotion.
 - [x] Search coverage checks every source field is included in indexed report text.
+- [ ] Tests verify documented code-to-label mappings across fixed and periodic fields, readable values are exposed to search/detail consumers, original codes are retained, and unknown codes do not get an invented label.
 - [x] Tests cover known conversions for all four GZDs, selection of the matching GZD, missing or invalid values, and coordinates in map-ready search results.
 
 ## Phase 4: Explorer experience
