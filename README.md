@@ -30,10 +30,14 @@ docker compose -f compose.yaml -f compose.dev.yaml exec backend uv run --no-sync
 
 ## Import command
 
-Put the selected NARA data file in `data/`. Run the importer separately from app startup:
+Download one or more ASCII translations from NARA's [SITRA series](https://catalog.archives.gov/id/604416) into `data/`. The four files cover 1966–1973. Run the importer separately from app startup:
 
 ```sh
-docker compose run --rm backend uv run --no-sync python -m app.import_data --source /data/sitra-source-file
+docker compose run --rm backend uv run --no-sync python -m app.import_data \
+  --source /data/SITRA.TR.6668.txt \
+  --source /data/SITRA.TR.69.txt \
+  --source /data/SITRA.TR.70.txt \
+  --source /data/SITRA.TR.7173.txt
 ```
 
-Replace `sitra-source-file` with the file's name in `data/`. The command entry point is scaffolded in Phase 1; parsing and loading are scheduled for Phase 3.
+The importer normalizes dates and coordinates, stores source rows in Neo4j, and reports loaded and skipped records. Application startup never imports data.

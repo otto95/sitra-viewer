@@ -1,6 +1,6 @@
 # Graph schema
 
-The graph follows `ontology_diagram.drawio` and the NARA source notes in [nara-source.md](nara-source.md). The official SITRA translation layout `SITRA.TR.LAY.txt` (downloadable from NARA file unit 1402152) was inspected alongside the first fixed-width data rows. It defines a 298-column record with five control fields at columns 1–12 (`DATE`, `DATAT`, `SERAL`, `CORP`, `PART`), a fixed set at columns 13–78, and seven periodic sets. Schema setup is idempotent and is defined in `backend/cypher/schema.cypher`.
+The graph follows `ontology_diagram.drawio` and the NARA source notes in [nara-source.md](nara-source.md). The official SITRA translation layout `SITRA.TR.LAY.txt` and technical documentation (downloadable from NARA file unit 1402152) were inspected alongside the first fixed-width data rows. Each translated row is 298 columns with five control fields at columns 1–12 (`DATE`, `DATAT`, `SERAL`, `CORP`, `PART`), a fixed set at columns 13–78, and seven periodic sets. Schema setup is idempotent and is defined in `backend/cypher/schema.cypher`.
 
 ## Model
 
@@ -24,26 +24,26 @@ The diagram has a few incomplete or ambiguous edges. `hasConat` is not expanded 
 | --- | --- | --- |
 | Stable source record identifier | `Report.recordId` | The source layout must be inspected before choosing its exact construction; `cntrl` alone is not assumed unique. |
 | `DATE` (Message Date, columns 1–6) | `Report.reportDate` | The record creation/timeline date. Stored as Neo4j `DATE`; API output is ISO `YYYY-MM-DD`. |
-| `DATAT`, `SERAL`, `CORP`, `PART` (columns 7–12) | `Report.reportType`, `paragraphNumber`, `militaryRegion`, `part` | The source layout labels `SERAL` as Paragraph Number and `CORP` as Military Region. Preserve raw control values. |
-| Serial / control number | `Report.serial`, `sourceControlNumber` | Preserve original values as supplied. |
-| `UDATE` (Date of Last Update, fixed columns 43–47) | `FixedSet.updateDate` | Five-character source date; retain raw value and normalize to ISO date in Phase 3. |
-| Initiation Date and Termination Date | `Report.initiationDate`, `Report.terminationDate` | Optional; retain only when parseable. Operation-specific times map to `startDateTime` and `endDateTime` when provided. |
+| `DATAT`, `SERAL`, `CORP`, `PART` (columns 7–12) | `Report.reportType`, `paragraphNumber`, `militaryRegion`, `part` | `DATAT` codes `S`, `L`, `E`, and `W` add the ontology labels SmallScaleOperation, LargeScaleOperation, EnemyInitiated, and WeeklySummary. `SERAL` is Paragraph Number and `CORP` is Military Region. |
+| `SERAL` paragraph/control number | `Report.serial`, `paragraphNumber` | Preserve the source value as supplied. |
+| `UDATE` (Date of Last Update, fixed columns 43–47) | `FixedSet.updateDate` | Five-character Julian source date; preserve its original text in `updateDateRaw` and normalize valid values. |
+| `DTEI`, `DTET`, `HOURT`, `HOURI` | `Report.initiationDate`, `terminationDate`, `initiationHour`, `terminationHour` | Dates are optional and normalized independently; hours remain the original four-character source values. |
 | Operation type and name/code | `HAS_OPERATION_TYPE`; report properties `operationName`, `operationCode` | Operation types use the shared code-list node. |
 | Primary and additional province | `HAS_PRIMARY_PROVINCE`, `HAS_SECONDARY_PROVINCE` | Code-list references support shared-place traversal. |
-| `UTM` (Second Set, columns 111–118) | `Report.sourceUtm` | Preserve the original value without mutation. |
+| `UTM` (Second Set, columns 111–118) | `Report.sourceUtm` | The source documentation describes this as a two-letter 100 km grid square plus six digits. Preserve the original value without mutation. |
 | Selected GZD and constructed MGRS | `Report.mgrsGzd`, `Report.sourceMgrs` | Preserve the chosen grid designator and resulting MGRS value alongside the raw UTM value. |
 | Converted point | `Report.latitude`, `Report.longitude` | Numeric coordinates used by the map. Leave absent if conversion fails. |
 | Imported text | `Report.searchText` | Normalized concatenation of all imported text fields, indexed for free-text search. |
 
-The source layout confirms the field positions and periodic set types; Phase 3 will finalize exact source-record identity and periodic-row keys while implementing the loader. A representative source control row begins `660520W003` (Message Date 1966-05-20, Data Type `W`, Paragraph Number `003`); other control values may be blank. Date parsing follows the Julian-date rule already recorded in `PLAN.md`; parsed values are stored as Neo4j temporal `DATE` properties and serialized as ISO calendar dates.
+The source layout confirms field positions and periodic set types. Source record identity is the translated file name plus one-based row number; that keeps every physical source record distinct even where a control tuple repeats. Periodic-row identity adds its set number. A representative source row begins `660520W003` (Message Date 1966-05-20, Data Type `W`, Paragraph Number `003`); other control values may be blank. Message, initiation, and termination dates use `YYMMDD`; update dates use `YYDDD`. Five-digit values and values ending in `J` are normalized as Julian dates under the rule in `PLAN.md`; parsed values are stored as Neo4j temporal `DATE` properties and serialized as ISO calendar dates. Original values remain on `reportDateRaw`, `updateDateRaw`, `initiationDateRaw`, and `terminationDateRaw`.
 
 ## Record associations
 
 NARA describes related multi-record operations and summaries as repeating the five control values from columns 1–12: Message Date (`DATE`), Data Type (`DATAT`), Paragraph Number (`SERAL`), Military Region (`CORP`), and Part (`PART`). Each complete control tuple maps to a `(:SourceGroup {groupKey})`; related reports connect to it through `MEMBER_OF`. The graph view can traverse the group to show these source-stated associations as definite. This avoids creating every pair in a group as a separate relationship.
 
-Associations inferred from shared unit, province/place, or report date use one canonical direction for `(:Report)-[:RELATED_TO]->(:Report)` and these properties:
+Associations inferred from a shared unit or exact converted MGRS grid square use one canonical direction for `(:Report)-[:RELATED_TO]->(:Report)`. For each shared unit or location group, the lexicographically earliest record is the anchor and is linked to each other group member. This sparse network represents shared metadata without creating every possible pair in large groups. A shared report date is retained as additional evidence when the candidate pair already shares a unit or exact location. Date alone does not create pairs because it would connect broad daily cohorts with weak evidence. Inferred edges use these properties:
 
-- `linkId`: SHA-256 of the UTF-8 report IDs in byte-sorted order with four-byte length prefixes, making the pair identity order-independent.
+- `linkId`: `related:<first-record-id>|<second-record-id>`, with UTF-8 byte-sorted IDs, making pair identity order-independent. Imported IDs use escaped source file names and row numbers, so the separator is unambiguous.
 - `status`: `possible` or `definite`.
 - `origin`: `metadata_inferred`.
 - `evidence`: strings naming each shared value, such as `shared_unit:<unitKey>` or `shared_date:YYYY-MM-DD`.
@@ -51,11 +51,11 @@ Associations inferred from shared unit, province/place, or report date use one c
 
 Promotion changes `status` to `definite` and adds confirmation fields; it leaves `origin` and `evidence` intact. The promotion helper in `backend/app/graph_schema.py` only updates a still-possible inferred link.
 
-The repeated source group is only created when all five control values are present. A missing control value is not treated as a wildcard. The exact source group key serialization and unit identity key will be finalized while implementing the Phase 3 loader.
+The repeated source group is only created when all five control values are present. A missing control value is not treated as a wildcard. The group key hashes the normalized JSON control tuple; a unit key hashes service nationality, company, battalion, brigade, and division identity values.
 
 ## Constraints and indexes
 
-`schema.cypher` adds uniqueness constraints for report, fixed-set, periodic-set, unit, source-group, and code-list identities, plus `RELATED_TO.linkId` so repeated graph writes can use `MERGE`. It adds a range index on `Report.reportDate` for date filters and a full-text index on `Report.searchText` for the search box. Relationship traversal uses Neo4j's adjacency and needs no separate traversal index. Map coordinates are returned with date-filtered reports, so no spatial index is added for this MVP.
+`schema.cypher` adds uniqueness constraints for report, fixed-set, periodic-set, unit, aircraft-service, source-group, and code-list identities, plus `RELATED_TO.linkId` so repeated graph writes can use `MERGE`. It adds range indexes on `Report.reportDate` and `Report.sourceMgrs` for date filters and exact-location inference, plus a full-text index on `Report.searchText` for the search box. Relationship traversal uses Neo4j's adjacency and needs no separate traversal index. Map coordinates are returned with date-filtered reports, so no spatial index is added for this MVP.
 
 ## Useful queries
 
@@ -94,6 +94,10 @@ MATCH (selected:Report {recordId: $recordId})-[:MEMBER_OF]->(group:SourceGroup)
 RETURN related, 'definite' AS status, 'source_control_group' AS origin, group
 ```
 
+## API
+
+Stable response shapes and routes are described in [api.md](api.md). The API starts independently of the importer; it reads the local Neo4j snapshot and exposes search, details, related records, and link promotion.
+
 ## Run and validate
 
 With the Compose stack running:
@@ -101,6 +105,7 @@ With the Compose stack running:
 ```sh
 docker compose exec backend uv run --no-sync python -m app.graph_schema setup
 docker compose exec backend uv run --no-sync python -m app.graph_schema validate-sample
+docker compose run --rm backend uv run --no-sync python -m app.import_data --source /data/SITRA.TR.6668.txt --source /data/SITRA.TR.69.txt --source /data/SITRA.TR.70.txt --source /data/SITRA.TR.7173.txt
 ```
 
-The sample validation creates three clearly namespaced demo reports, proves the source-group, periodic-unit, and date-filter traversals, promotes one possible association, checks that its origin and evidence remain unchanged, and removes its sample nodes. It does not load or alter NARA records.
+The importer is separate from app startup and accepts one or more local ASCII translations. It reports loaded rows, malformed rows skipped, records without a parseable date, and records without coordinates. Re-running it uses stable record and relationship identities. The sample validation creates three clearly namespaced demo reports, proves the source-group, periodic-unit, and date-filter traversals, promotes one possible association, checks that its origin and evidence remain unchanged, and removes its sample nodes.

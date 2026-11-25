@@ -20,11 +20,14 @@
 - No user management for the MVP
 - Use popular libraries
 - Use open-source no cost lisencing
+- Create unit tests coverage of 60% or greater
+- Perform integration testing
 - As simple as possible but with an elegant UI
 
 ## Development Process
 - Read the plan
-- Implement the plan
+- Create a new branch for each phase
+- Implement the plan in the corresponding branch
 - Make a git commit and a pull request
 
 ## Color Scheme

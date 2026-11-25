@@ -5,6 +5,7 @@ description = "API for the SITRA Vietnam Conflict Data Explorer"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.165.0",
+    "mgrs==1.7.1",
     "neo4j==6.4.1",
     "uvicorn[standard]==0.54.0",
 ]
@@ -14,6 +15,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
 ]
