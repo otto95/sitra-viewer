@@ -27,6 +27,18 @@ function dateLabel(value?: string) {
 function titleFor(record: RecordNode) {
   return String(record.reportTypeLabel || record.reportType || 'Situation report')
 }
+function sourceValue(value: unknown) {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value) ?? String(value)
+}
+function highlightedValue(value: string, query: string) {
+  const terms = query.trim().split(/\s+/).filter(Boolean)
+  if (!terms.length) return value
+  const expression = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'ig')
+  return value.split(expression).map((part, index) => terms.some((term) => term.toLocaleLowerCase() === part.toLocaleLowerCase())
+    ? <mark key={`${part}-${index}`}>{part}</mark>
+    : part)
+}
 
 function App() {
   const [query, setQuery] = useState('')
@@ -137,6 +149,8 @@ function App() {
       {selected && <div className="drawer-scrim" onClick={() => setSelected(null)}><aside className="detail-drawer" aria-label="Record details" onClick={(event) => event.stopPropagation()}><div className="drawer-top"><span className="section-kicker">ARCHIVAL RECORD</span><button className="close-button" onClick={() => setSelected(null)} aria-label="Close record details">×</button></div><p className="drawer-date">{dateLabel(selected.reportDate)}</p><h2 className="drawer-title">{titleFor(selected)}</h2><p className="drawer-id">{selected.recordId}</p>
         {detailBusy ? <div className="drawer-loading">Loading record and connections…</div> : <>
           <div className="detail-facts"><Fact label="Message date" value={dateLabel(details?.record.reportDate ?? selected.reportDate)} /><Fact label="Grid reference" value={String(details?.record.sourceMgrs || selected.sourceMgrs || details?.record.sourceUtm || selected.sourceUtm || 'Not recorded')} /><Fact label="Report type" value={titleFor(details?.record ?? selected)} /></div>
+          <div className="periodic-heading"><div><span className="section-kicker">SOURCE ROWS</span><h3>Periodic sets</h3></div><span className="panel-count">{details?.periodicSets.length ?? 0} SETS</span></div>
+          {details?.periodicSets.length ? <div className="periodic-set-list">{details.periodicSets.map((periodicSet) => <PeriodicSetCard key={String(periodicSet.periodicSetId)} periodicSet={periodicSet} query={query} />)}</div> : <p className="no-periodic-sets">No periodic set values are recorded for this report.</p>}
           <div className="network-heading"><div><span className="section-kicker">ASSOCIATIONS</span><h3>Connected records</h3></div><span className="panel-count">{related.length} LINKS</span></div>
           <NetworkGraph current={selected} links={related} onSelect={openRecord} />
           {related.length === 0 ? <p className="no-links">No associated records are recorded for this item.</p> : <div className="related-list">{related.map((item) => <div className="related-row" key={item.record.recordId}><button className="related-name" onClick={() => openRecord(item.record)}><span>{item.record.recordId}</span><small>{dateLabel(item.record.reportDate)}</small></button><div className="related-status"><span className={`status-chip status-chip--${item.status}`}>{item.status === 'possible' ? 'Possible link' : 'Definite link'}</span>{item.status === 'possible' && item.linkId && <button className="promote-button" disabled={promoting === item.linkId} onClick={() => void promotion(item)}>{promoting === item.linkId ? 'Saving…' : 'Confirm link'}</button>}</div><p className="evidence-copy">{item.evidence.map((value) => value.replaceAll('_', ' ')).join(' · ')}</p></div>)}</div>}
@@ -150,6 +164,17 @@ function MapPin({ record, onSelect }: { record: RecordNode; onSelect: () => void
   return <CircleMarker center={[record.latitude as number, record.longitude as number]} radius={7} pathOptions={{ color: '#f3f0e6', weight: 2, fillColor: '#556b2f', fillOpacity: 0.95 }} eventHandlers={{ click: onSelect }}><Tooltip>{record.recordId}<br />{dateLabel(record.reportDate)}</Tooltip></CircleMarker>
 }
 function Fact({ label, value }: { label: string; value: string }) { return <div className="fact"><span>{label}</span><strong>{value}</strong></div> }
+function PeriodicSetCard({ periodicSet, query }: { periodicSet: Record<string, unknown>; query: string }) {
+  const internal = new Set(['periodicSetId', 'sourceFile', 'sourceRecordNumber', 'searchText', 'kind', 'lineNumber'])
+  const sourceFields = Object.entries(periodicSet).filter(([key, value]) => !internal.has(key) && !key.endsWith('Label') && value !== null && value !== '')
+  const labels = Object.fromEntries(Object.entries(periodicSet).filter(([key]) => key.endsWith('Label')).map(([key, value]) => [key.slice(0, -5), value]))
+  const extraLabels = Object.entries(labels).filter(([field]) => !sourceFields.some(([sourceField]) => sourceField === field))
+  return <article className="periodic-set-card"><div className="periodic-set-title"><strong>{String(periodicSet.kind || 'Periodic set')}</strong><span>{periodicSet.lineNumber ? `SOURCE LINE ${String(periodicSet.lineNumber)}` : String(periodicSet.periodicSetId).split(':').at(-1)?.toUpperCase()}</span></div>
+    <dl className="periodic-value-grid">{sourceFields.map(([field, rawValue]) => { const raw = sourceValue(rawValue); const label = labels[field]; return <div className="periodic-value" key={field}><dt>{field.toUpperCase()}</dt><dd><span className="source-code">{highlightedValue(raw, query)}</span>{label !== undefined && <span className="readable-value">{highlightedValue(sourceValue(label), query)}</span>}</dd></div> })}
+      {extraLabels.map(([field, label]) => <div className="periodic-value" key={field}><dt>{field.replace(/([A-Z])/g, ' $1').toUpperCase()}</dt><dd><span className="readable-value">{highlightedValue(sourceValue(label), query)}</span></dd></div>)}
+    </dl>
+  </article>
+}
 function NetworkGraph({ current, links, onSelect }: { current: RecordNode; links: RelatedItem[]; onSelect: (record: RecordNode) => void }) {
   const displayed = links.slice(0, 8)
   const cx = 170; const cy = 118

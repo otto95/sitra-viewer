@@ -66,6 +66,7 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 - [x] Plot the current search page on an interactive map and make map selection open the corresponding record.
 - [x] Plot results along a timeline by message date, keeping date filtering consistent with search results.
 - [x] Provide a record detail view with a network graph of that record and its associated records. Show metadata-inferred associations as possible links, visibly labeled as such, and provide a user action to change a possible link to a definite link; reflect the updated status in the graph.
+- [x] In the archival record view, list every periodic set and its source values, show decoded labels alongside raw codes, and highlight searched terms within those values to reveal where a match occurs.
 - [x] Include clear loading, empty, and error states; keep controls and navigation limited to the MVP workflows.
 
 **Success criteria**

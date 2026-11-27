@@ -48,7 +48,7 @@ Record details expose decoded code labels on the corresponding report, fixed-set
 
 ## Record details and associations
 
-- `GET /api/records/{recordId}` returns `{ "record": ..., "fixedSets": [...], "periodicSets": [...] }`.
+- `GET /api/records/{recordId}` returns `{ "record": ..., "fixedSets": [...], "periodicSets": [...] }`. Each periodic-set object retains its source field values and decoded label properties so the archival view can show every repeated row with its original codes.
 - `GET /api/records/{recordId}/related` returns `{ "recordId": ..., "items": [...] }`. Each item contains its `record`, `status`, `origin`, and `evidence`; metadata-inferred links also include `linkId` for promotion. `origin` is `source_control_group`, `metadata_inferred`, or `source_control_group+metadata_inferred` when both apply. Source-control groups appear as definite associations; inferred links appear as possible until promoted.
 - `POST /api/links/{linkId}/promote` changes a possible metadata-inferred link to definite and returns `{ "linkId": ..., "status": "definite" }`. A missing or already definite link returns HTTP 409. Origin and evidence remain unchanged.
 
