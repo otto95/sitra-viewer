@@ -165,7 +165,7 @@ def get_related_records(record_id: str, driver: Driver = Depends(get_driver)) ->
             """
             MATCH (report:Report {recordId: $record_id})
                   -[link:RELATED_TO]-(related:Report)
-            RETURN related, link.status AS status, link.origin AS origin,
+            RETURN related, link.linkId AS linkId, link.status AS status, link.origin AS origin,
                    link.evidence AS evidence
             """,
             record_id=record_id,
@@ -191,6 +191,7 @@ def get_related_records(record_id: str, driver: Driver = Depends(get_driver)) ->
             continue
         related[record_id_value] = {
             "record": node,
+            "linkId": row["linkId"],
             "status": row["status"],
             "origin": row["origin"],
             "evidence": row["evidence"],

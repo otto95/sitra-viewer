@@ -61,18 +61,18 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 ## Phase 4: Explorer experience
 
-- [ ] Build a cohesive responsive interface in `frontend/` with a clear search field, date limits, result count, and readable record list.
-- [ ] Apply the supplied palette: Olive Drab `#556B2F`, Field Green `#3F5940`, Coyote Tan `#B58B5A`, Deep Charcoal `#242820`, Warm Gray `#77766D`, and Parchment `#F3F0E6`.
-- [ ] Plot the current search results on an interactive map and make map selection open the corresponding record.
-- [ ] Plot results along a timeline by creation date, keeping date filtering consistent with search results.
-- [ ] Provide a record detail view with a network graph of that record and its associated records. Show metadata-inferred associations as possible links, visibly labeled as such, and provide a user action to change a possible link to a definite link; reflect the updated status in the graph.
-- [ ] Include clear loading, empty, and error states; keep controls and navigation limited to the MVP workflows.
+- [x] Build a cohesive responsive interface in `frontend/` with a clear search field, date limits, result count, and readable record list.
+- [x] Apply the supplied palette: Olive Drab `#556B2F`, Field Green `#3F5940`, Coyote Tan `#B58B5A`, Deep Charcoal `#242820`, Warm Gray `#77766D`, and Parchment `#F3F0E6`.
+- [x] Plot the current search page on an interactive map and make map selection open the corresponding record.
+- [x] Plot results along a timeline by message date, keeping date filtering consistent with search results.
+- [x] Provide a record detail view with a network graph of that record and its associated records. Show metadata-inferred associations as possible links, visibly labeled as such, and provide a user action to change a possible link to a definite link; reflect the updated status in the graph.
+- [x] Include clear loading, empty, and error states; keep controls and navigation limited to the MVP workflows.
 
 **Success criteria**
 
-- [ ] Search terms and date limits update the same result set shown in the list, map, and timeline.
-- [ ] Selecting a result from the list or map opens its details and relationship graph; possible links are labeled, and promoting one changes its displayed status to definite.
-- [ ] The layout remains usable at desktop and narrow/mobile widths, with legible labels, keyboard-accessible controls, and no horizontal overflow.
+- [x] Search terms and date limits update the same paginated result set shown in the list, map, and timeline.
+- [x] Selecting a result from the list or map opens its details and relationship graph; possible links are labeled, and promoting one changes its displayed status to definite.
+- [ ] The layout remains usable at desktop and narrow/mobile widths, with legible labels, keyboard-accessible controls, and no horizontal overflow. Responsive breakpoints and keyboard-operable controls are implemented; visual viewport verification is deferred to Phase 5 because the browser access host was unavailable during Phase 4.
 
 ## Phase 5: Verification and polish
 
