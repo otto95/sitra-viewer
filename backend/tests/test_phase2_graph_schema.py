@@ -72,20 +72,29 @@ def test_import_command_requires_an_existing_source(
     assert "source file not found" in capsys.readouterr().err
 
 
-def test_import_command_is_scaffolded_separately_from_startup(
+def test_import_command_loads_explicit_sources_separately_from_startup(
     monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     source = tmp_path / "sitra.dat"
     source.write_text("demo source")
     monkeypatch.setattr(sys, "argv", ["import_data", "--source", str(source)])
+    from app import import_data
 
-    with pytest.raises(SystemExit) as exit_info:
-        from app.import_data import main
+    fake_driver = MagicMock()
+    fake_driver.__enter__.return_value = fake_driver
+    counts = {"loaded": 1, "skipped": 0, "withoutDate": 0, "withoutCoordinates": 1}
+    with (
+        patch.object(import_data.GraphDatabase, "driver", return_value=fake_driver),
+        patch.object(import_data, "apply_schema") as apply_schema,
+        patch.object(import_data, "load_source", return_value=counts) as load_source,
+        patch.object(import_data, "infer_possible_links") as infer_links,
+    ):
+        import_data.main()
 
-        main()
-
-    assert exit_info.value.code == 2
-    assert "implemented in Phase 3" in capsys.readouterr().err
+    apply_schema.assert_called_once_with(fake_driver, "neo4j")
+    load_source.assert_called_once_with(fake_driver, source, "neo4j", 1000)
+    infer_links.assert_called_once_with(fake_driver, "neo4j")
+    assert "loaded': 1" in capsys.readouterr().out
 
 
 def test_health_endpoint_function() -> None:

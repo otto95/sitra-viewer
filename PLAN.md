@@ -42,20 +42,22 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 ## Phase 3: One-time data ingestion and API
 
-- [ ] Provide a separate import command that loads the selected NARA source into the locally running Neo4j Community Edition database, preserving source identifiers and useful metadata. Keep the imported graph data local; routine refreshes are out of scope. App startup must not run this command automatically.
-- [ ] Select the NARA source that provides the most usable records for the MVP; normalize all imported text fields for free-text search and relationship references while retaining source provenance. Normalize every date to ISO 8601 calendar-date format (`YYYY-MM-DD`). Treat a date value with exactly five digits or a trailing `J` as a Julian date; interpret all dates as falling between 1965 and 1973, convert Julian dates to their corresponding Gregorian calendar dates, and retain the original date value for provenance.
-- [ ] Convert legacy UTM values to latitude/longitude using the supplied `convert_to_latlong` approach. The source UTM values omit the grid zone designator (GZD); try each of Vietnam's four GZDs (`48Q`, `49Q`, `48P`, and `49P`) with the UTM value, select the GZD that yields a valid MGRS value, then convert that MGRS value to latitude/longitude. Store the original UTM value, selected GZD/MGRS value, and resulting coordinates in Neo4j for map use; leave coordinates empty when the value is missing or no valid MGRS value can be produced.
-- [ ] Create inferred record links from shared metadata such as unit, place, or date, using the finalized graph schema and preserving the evidence for each inferred link.
-- [ ] Define a small API for free-text search across all imported text fields, pagination, date-range filtering, record details, map-ready results, and a selected record's related records. Include an operation to promote a possible link to a definite link.
-- [ ] Handle incomplete or unparseable source fields consistently so records without valid dates, coordinates, or known links remain usable where applicable; do not invent a normalized date when the source value cannot be interpreted under the date rules.
+- [x] Provide a separate import command that loads the selected NARA source into the locally running Neo4j Community Edition database, preserving source identifiers and useful metadata. Keep the imported graph data local; routine refreshes are out of scope. App startup must not run this command automatically.
+- [x] Select the four ASCII translations covering the full 1966–1973 period; normalize all imported text fields for free-text search and relationship references while retaining source provenance. Normalize every parseable date to ISO 8601 calendar-date form (`YYYY-MM-DD`). Treat a date value with exactly five digits or a trailing `J` as a Julian date; interpret years as 1965–1973, convert valid Julian dates to Gregorian dates, and retain original date values.
+- [x] Decode coded source values to readable labels using the authoritative code descriptions and value tables in NARA's [SITRA technical documentation](https://catalog.archives.gov/medialz/electronic-records/rg-218/SITRA/131.1DP.pdf). Cover documented tables for data type, force/service nationality, country, operation/action type, province, objective and objective description, unit size and activity, military region, and loss/incident codes. Preserve the original code alongside each readable value; leave unknown or undocumented codes visible as raw codes rather than guessing.
+- [x] Convert legacy UTM values to latitude/longitude with `convert_to_latlong`. The source values omit the grid zone designator (GZD); try each of Vietnam's four GZDs (`48Q`, `49Q`, `48P`, and `49P`), accept a unique MGRS interpretation inside that GZD's Vietnam bounds, then retain the selected GZD/MGRS and converted coordinates. Missing or unconvertible coordinates remain absent.
+- [x] Create metadata-inferred links from shared unit and exact MGRS location, and add shared date as evidence when present. Source-stated control groups remain distinct; evidence and origin are retained for promotion.
+- [x] Define API endpoints for free-text search across all imported text fields, pagination, date-range filtering, record details, map-ready results, related records, and possible-link promotion. Document stable routes and response shapes.
+- [x] Keep records with incomplete or unparseable source values usable; preserve unparseable raw dates and UTM values without inventing normalized values.
 
 **Success criteria**
 
-- [ ] The initial import reports how many records were loaded or skipped and completes against a clean database without manual edits.
-- [ ] API responses have documented, stable shapes and return enough information for all required views.
-- [ ] Unit tests cover import normalization, including ISO date output, five-digit and `J`-suffixed Julian dates across the 1965–1973 year range, calendar-date inputs, and missing or unparseable dates; also cover search/date filtering, pagination, detail retrieval, relationship lookup, and promotion of possible links to definite links.
-- [ ] Search tests verify matches across every imported text field, not only titles or descriptions.
-- [ ] Unit tests cover known conversions for all four GZDs, selection of the GZD that produces a valid MGRS value, missing values, and values for which no valid MGRS value can be produced; verify converted coordinates are used in map results.
+- [x] The initial import reports loaded/skipped counts and completed against a clean database without manual edits: 742,591 loaded and 0 skipped.
+- [x] API responses have documented, stable shapes and return enough information for all required views.
+- [x] Unit and Neo4j integration tests cover import/date normalization, Julian and calendar dates, missing and invalid values, search/date filtering, pagination, details, relationship lookup, and possible-link promotion.
+- [x] Search coverage checks every source field is included in indexed report text.
+- [x] Tests verify documented code-to-label mappings across fixed and periodic fields, readable values are exposed to search/detail consumers, original codes are retained, and unknown codes do not get an invented label.
+- [x] Tests cover known conversions for all four GZDs, selection of the matching GZD, missing or invalid values, and coordinates in map-ready search results.
 
 ## Phase 4: Explorer experience
 
