@@ -79,7 +79,7 @@ SET fixedSet += {sampleRun: $sample_tag, updateDate: date('1968-01-05')}
 MERGE (report)-[:HAS_FIXED_SET]->(fixedSet)
 MERGE (periodicSet:PeriodicSet {periodicSetId: periodicSetId})
 SET periodicSet += {sampleRun: $sample_tag, setNumber: 3, lineNumber: '01', kind: 'Unit'}
-MERGE (fixedSet)-[:HAS_PERIODIC_SET]->(periodicSet)
+MERGE (report)-[:HAS_PERIODIC_SET]->(periodicSet)
 MERGE (periodicSet)-[:HAS_UNIT]->(unit)
 MERGE (fixedSet)-[:HAS_PRIMARY_PROVINCE]->(province)
 
@@ -203,7 +203,6 @@ def validate_sample_graph(driver: Driver, database: str = "neo4j") -> dict[str, 
             driver,
             """
             MATCH (report:Report {sampleRun: $sample_tag})
-                  -[:HAS_FIXED_SET]->(:FixedSet)
                   -[:HAS_PERIODIC_SET]->(:PeriodicSet)
                   -[:HAS_UNIT]->(:Unit)
             RETURN count(DISTINCT report) AS count

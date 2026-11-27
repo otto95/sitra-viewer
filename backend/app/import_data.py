@@ -72,6 +72,10 @@ SET_LINE_FIELDS = {
 
 LOAD_BATCH_QUERY = """
 UNWIND $rows AS item
+OPTIONAL MATCH (:Report {recordId: item.report.recordId})
+      -[:HAS_FIXED_SET]->(:FixedSet)-[legacy:HAS_PERIODIC_SET]->(:PeriodicSet)
+WITH item, collect(legacy) AS legacyLinks
+FOREACH (legacy IN legacyLinks | DELETE legacy)
 MERGE (report:Report {recordId: item.report.recordId})
 SET report += item.report
 FOREACH (_ IN CASE WHEN item.report.reportType = 'S' THEN [1] ELSE [] END |
@@ -124,7 +128,7 @@ FOREACH (lookup IN item.lookupCodes |
 FOREACH (periodic IN item.periodicSets |
     MERGE (periodicSet:PeriodicSet {periodicSetId: periodic.periodicSetId})
     SET periodicSet += periodic.properties
-    MERGE (fixed)-[:HAS_PERIODIC_SET]->(periodicSet)
+MERGE (report)-[:HAS_PERIODIC_SET]->(periodicSet)
     FOREACH (_ IN CASE WHEN periodic.unit IS NULL THEN [] ELSE [1] END |
         MERGE (unit:Unit {unitKey: periodic.unit.unitKey})
         SET unit += periodic.unit
@@ -141,8 +145,7 @@ RETURN count(report) AS loaded
 """
 
 INFER_UNIT_LINKS_QUERY = """
-MATCH (unit:Unit)<-[:HAS_UNIT]-(:PeriodicSet)
-      <-[:HAS_PERIODIC_SET]-(:FixedSet)<-[:HAS_FIXED_SET]-(report:Report)
+MATCH (unit:Unit)<-[:HAS_UNIT]-(:PeriodicSet)<-[:HAS_PERIODIC_SET]-(report:Report)
 WHERE $sourceFiles IS NULL OR report.sourceFile IN $sourceFiles
 WITH unit, collect(DISTINCT report.recordId) AS recordIds
 WHERE size(recordIds) > 1

@@ -126,7 +126,7 @@ def get_record(record_id: str, driver: Driver = Depends(get_driver)) -> dict[str
             """
             MATCH (report:Report {recordId: $record_id})
             OPTIONAL MATCH (report)-[:HAS_FIXED_SET]->(fixed:FixedSet)
-            OPTIONAL MATCH (fixed)-[:HAS_PERIODIC_SET]->(periodic:PeriodicSet)
+            OPTIONAL MATCH (report)-[:HAS_PERIODIC_SET]->(periodic:PeriodicSet)
             RETURN report,
                    collect(DISTINCT CASE WHEN fixed IS NULL THEN null ELSE properties(fixed) END) AS fixedSets,
                    collect(DISTINCT CASE WHEN periodic IS NULL THEN null ELSE properties(periodic) END) AS periodicSets

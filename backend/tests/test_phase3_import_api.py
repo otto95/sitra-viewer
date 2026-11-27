@@ -88,7 +88,7 @@ def test_parse_record_maps_all_fields_dates_utm_units_and_control_group(tmp_path
         "PRVC1": "01", "UTM": "WH000114", "FSLIN": "001", "CONAM": "Task Force", "ARSVC": "J",
         "SSLIN": "001", "TYPAT": "AT", "OBJEC": "01", "OBJDS": "10",
         "LINFS": "001", "SVNAT": "V", "COMPY": "A01", "BNID": "1 BN", "SMTH": "C",
-        "MVRSP": "M", "RESAC": "A", "TSLIN": "001", "LSCAT": "0", "LSCLS": "1",
+        "MVRSP": "M", "RESAC": "A", "TSLIN": "001", "LNATL": "E", "LSCAT": "0", "LSCLS": "1",
         "SFLIN": "001", "INATL": "V", "ISIZE": "P", "ICTZ": "1", "SLINS": "001", "LTYPE": "D",
     })
 
@@ -211,6 +211,23 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
     driver = GraphDatabase.driver(uri)
     graph_schema.apply_schema(driver, database)
     try:
+        with driver.session(database=database) as session:
+            session.run(
+                """
+                MERGE (report:Report {recordId: $record_id})
+                SET report.sourceFile = $source
+                MERGE (fixed:FixedSet {fixedSetId: $fixed_id})
+                SET fixed.sourceFile = $source
+                MERGE (periodic:PeriodicSet {periodicSetId: $legacy_id})
+                SET periodic.sourceFile = $source
+                MERGE (report)-[:HAS_FIXED_SET]->(fixed)
+                MERGE (fixed)-[:HAS_PERIODIC_SET]->(periodic)
+                """,
+                record_id=f"{source.name}:1",
+                source=source.name,
+                fixed_id=f"{source.name}:1:fixed",
+                legacy_id=f"{source.name}:1:legacy-periodic",
+            ).consume()
         counts = load_source(driver, source, database, batch_size=1)
         infer_possible_links(driver, database, [source.name])
         with driver.session(database=database) as session:
@@ -218,7 +235,7 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
                 """
                 MATCH (report:Report {sourceFile: $source})
                 OPTIONAL MATCH (report)-[:MEMBER_OF]->(group:SourceGroup)
-                OPTIONAL MATCH (report)-[:HAS_FIXED_SET]->(:FixedSet)-[:HAS_PERIODIC_SET]->(periodic:PeriodicSet)
+                OPTIONAL MATCH (report)-[:HAS_PERIODIC_SET]->(periodic:PeriodicSet)
                 OPTIONAL MATCH (report)-[:HAS_FIXED_SET]->(fixed:FixedSet)
                 RETURN count(DISTINCT report) AS reports,
                        count(DISTINCT group) AS groups,
@@ -241,10 +258,15 @@ def test_import_and_inferred_links_against_neo4j(tmp_path: Path) -> None:
                 "MATCH (report:Report:WeeklySummary {sourceFile: $source}) RETURN count(report) AS count",
                 source=source.name,
             ).single()["count"]
+            legacy_periodic_links = session.run(
+                "MATCH (fixed:FixedSet {sourceFile: $source})-[:HAS_PERIODIC_SET]->() RETURN count(*) AS count",
+                source=source.name,
+            ).single()["count"]
         assert counts["loaded"] == 2
         assert result["reports"] == 2
         assert result["groups"] == 1
         assert result["periodicSets"] == 4
+        assert legacy_periodic_links == 0
         assert "Quang Tri" in result["provinceLabels"]
         assert "Attack" in result["actionLabels"]
         assert weekly_reports == 2
@@ -308,7 +330,7 @@ def test_api_records_details_related_and_promotion_against_neo4j() -> None:
             MERGE (c)-[:HAS_FIXED_SET]->(fixed)
             MERGE (periodic:PeriodicSet {periodicSetId: $periodic_id})
             SET periodic += {phase3Sample: $tag, kind: 'Unit', svnat: 'V', svnatLabel: 'Viet Cong'}
-            MERGE (fixed)-[:HAS_PERIODIC_SET]->(periodic)
+            MERGE (c)-[:HAS_PERIODIC_SET]->(periodic)
             """,
             a=record_a,
             b=record_b,
