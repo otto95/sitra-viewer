@@ -4,17 +4,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 from neo4j import GraphDatabase
 
-from app import graph_schema
+from app import graph_schema, graph_schema_sample
 
 
 def test_schema_statements_cover_identity_search_and_dates() -> None:
     statements = graph_schema.schema_statements()
     joined = "\n".join(statements)
 
-    assert "report_record_id" in joined
+    assert "data_record_id" in joined
     assert "related_link_id" in joined
-    assert "report_message_sent_date" in joined
-    assert "report_search" in joined
+    assert "data_record_date" in joined
+    assert "data_record_search" in joined
+    assert ":SourceGroup" not in joined
+    assert ":Report)" not in joined
 
 
 def test_related_link_id_is_order_independent() -> None:
@@ -41,8 +43,8 @@ def test_graph_schema_cli_dispatches_command(command: str, monkeypatch: pytest.M
     with (
         patch.object(GraphDatabase, "driver", return_value=fake_driver) as driver_factory,
         patch.object(graph_schema, "apply_schema") as apply_schema,
-        patch.object(graph_schema, "validate_sample_graph", return_value={}) as validate_sample,
-        patch.object(graph_schema, "cleanup_sample_graph") as cleanup_sample,
+        patch.object(graph_schema_sample, "validate_sample_graph", return_value={}) as validate_sample,
+        patch.object(graph_schema_sample, "cleanup_sample_graph") as cleanup_sample,
     ):
         graph_schema.main()
 
@@ -101,9 +103,12 @@ def test_neo4j_integration_schema_and_link_promotion() -> None:
     with GraphDatabase.driver(uri) as driver:
         driver.verify_connectivity()
         graph_schema.apply_schema(driver, database)
-        result = graph_schema.validate_sample_graph(driver, database)
+        graph_schema.apply_schema(driver, database)
+        result = graph_schema_sample.validate_sample_graph(driver, database)
 
-    assert result["recordsInDateRange"] == 3
+    assert result["recordsInDateRange"] == 4
     assert result["promotedStatus"] == "definite"
     assert result["evidenceRetained"] is True
-    assert result["sourceControlGroup"]["part"] == "A"
+    assert result["repeatedLineOccurrences"] == 2
+    assert result["verifiedMapPoints"] == 2
+    assert result["materialKinds"] == ["Ammunition", "Provision", "Weapon"]

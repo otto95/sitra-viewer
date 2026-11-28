@@ -25,16 +25,16 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 ## Phase 2: Graph schema from ontology
 
-- [x] Inspect `docs/ontology_diagram.drawio` and identify its entity types, properties, and relationship types.
+- [x] Use `docs/ontology_description.md` as the source for entity types, properties, and relationships.
 - [x] Translate the ontology into a Neo4j graph model and Cypher setup, including only the constraints and indexes needed for record identity, search, date filtering, and relationship traversal.
-- [x] Define how NARA fields map to ontology properties and relationships; identify metadata that can support inferred links between records, including shared unit, place, and date. Preserve source UTM/MGRS values alongside normalized coordinates.
+- [x] Define how NARA fields map to a canonical Data Record, distinct periodic occurrences, and source-backed entity links. Preserve source grid references alongside verified coordinates.
 - [x] Compare relationships apparent in the source data with those expressible in the ontology. Recommend and document schema modifications wherever a useful relationship cannot be represented; incorporate needed changes before finalizing the schema.
 - [x] Store metadata-inferred associations as possible links, distinct from source-stated relationships, and record the shared metadata supporting each inference. Support promoting a possible link to a definite link while retaining its origin/evidence.
-- [x] Validate representative NARA record fields and associations against the schema before implementing the one-time import. The official 1966–1968 fixed-width layout and a representative record row were inspected; the database sample validates source groups, periodic sets, possible-link evidence, promotion, search, and date filtering. Bulk parsing remains Phase 3.
+- [x] Validate a source-shaped sample against Neo4j: repeated periodic sets, source-backed event/unit/location links, material navigation, verified map points, inference evidence, promotion, search, and date filtering. Bulk parsing remains Phase 3.
 
 **Success criteria**
 
-- [x] The graph schema is traceable to `docs/ontology_diagram.drawio`, with any interpretation decisions documented.
+- [x] The graph schema is traceable to `docs/ontology_description.md`, with interpretation decisions documented.
 - [x] Any schema changes recommended after reviewing the data are documented with their rationale and reflected in the finalized model.
 - [x] A representative sample can be modeled and queried in Neo4j, including source-stated relationships and metadata-inferred possible links; a possible link can be promoted to a definite link without losing its evidence or provenance.
 - [x] The schema supports the required search and date-filter workflows without adding unrelated data concepts.
@@ -44,8 +44,8 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 - [ ] Provide a separate import command that loads the selected NARA source into the locally running Neo4j Community Edition database, preserving source identifiers and useful metadata. Keep the imported graph data local; routine refreshes are out of scope. App startup must not run this command automatically.
 - [ ] Select the NARA source that provides the most usable records for the MVP; normalize all imported text fields for free-text search and relationship references while retaining source provenance. Normalize every date to ISO 8601 calendar-date format (`YYYY-MM-DD`). Treat a date value with exactly five digits or a trailing `J` as a Julian date; interpret all dates as falling between 1965 and 1973, convert Julian dates to their corresponding Gregorian calendar dates, and retain the original date value for provenance.
-- [ ] Convert legacy UTM values to latitude/longitude using the supplied `convert_to_latlong` approach. The source UTM values omit the grid zone designator (GZD); try each of Vietnam's four GZDs (`48Q`, `49Q`, `48P`, and `49P`) with the UTM value, select the GZD that yields a valid MGRS value, then convert that MGRS value to latitude/longitude. Store the original UTM value, selected GZD/MGRS value, and resulting coordinates in Neo4j for map use; leave coordinates empty when the value is missing or no valid MGRS value can be produced.
-- [ ] Create inferred record links from shared metadata such as unit, place, or date, using the finalized graph schema and preserving the evidence for each inferred link.
+- [ ] Verify the grid zone for each source UTM reference before converting it to latitude/longitude. Test the relevant candidate GZDs (`48Q`, `49Q`, `48P`, `49P` in Vietnam); do not choose the first syntactically valid MGRS value. Preserve every raw reference and store GZD, MGRS, and coordinates for verified points only.
+- [ ] Create inferred record links only when two report dates are within seven calendar days inclusive and the records share a resolved unit or a specific place. Retain the evidence and original inference when a user confirms a link.
 - [ ] Define a small API for free-text search across all imported text fields, pagination, date-range filtering, record details, map-ready results, and a selected record's related records. Include an operation to promote a possible link to a definite link.
 - [ ] Handle incomplete or unparseable source fields consistently so records without valid dates, coordinates, or known links remain usable where applicable; do not invent a normalized date when the source value cannot be interpreted under the date rules.
 
@@ -61,9 +61,9 @@ GitHub repository: https://github.com/otto95/sitra-viewer
 
 - [ ] Build a cohesive responsive interface in `frontend/` with a clear search field, date limits, result count, and readable record list.
 - [ ] Apply the supplied palette: Olive Drab `#556B2F`, Field Green `#3F5940`, Coyote Tan `#B58B5A`, Deep Charcoal `#242820`, Warm Gray `#77766D`, and Parchment `#F3F0E6`.
-- [ ] Plot the current search results on an interactive map and make map selection open the corresponding record.
+- [ ] Plot all verified objective points for each current search result. Selecting a point opens its owning record; unresolved references stay in record details.
 - [ ] Plot results along a timeline by creation date, keeping date filtering consistent with search results.
-- [ ] Provide a record detail view with a network graph of that record and its associated records. Show metadata-inferred associations as possible links, visibly labeled as such, and provide a user action to change a possible link to a definite link; reflect the updated status in the graph.
+- [ ] Provide a record detail view with a network graph of that record and its associated records. Include selectable Weapon, Ammunition, and Provision nodes that lead to other records referencing the same material. Label inferred record links as possible and promoted links as user-confirmed, not source-stated.
 - [ ] Include clear loading, empty, and error states; keep controls and navigation limited to the MVP workflows.
 
 **Success criteria**
